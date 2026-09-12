@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Odu Ifá">
+<meta name="theme-color" content="#1a1410">
+<title>Odu Ifá</title>
+<style>
+  :root {
+    --gold: #c9a84c;
+    --gold-light: #e8cc7a;
+    --gold-dim: #7a6030;
+    --ink: #1a1410;
+    --paper: #f5efe0;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+    user-select: none;
+  }
+
+  /* Full-screen layout: header / player / tracklist */
+  #app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bot);
+  }
+
+  /* ── Header ── */
+  #header {
+    text-align: center;
+    padding: 0.9rem 1rem 0.5rem;
+    border-bottom: 1px solid var(--gold-dim);
+    flex-shrink: 0;
+  }
+
+  #header h1 {
+    font-size: 1.25rem;
+    color: var(--gold-light);
+    letter-spacing: 0.1em;
+  }
+
+  #header p {
+    font-size: 0.65rem;
+    color: var(--gold-dim);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-top: 0.1rem;
+  }
+
+  /* ── Player panel ── */
+  #player {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 1rem 1.2rem 0.8rem;
+    border-bottom: 1px solid rgba(122,96,48,0.4);
+    background: linear-gradient(180deg, #1e1810 0%, #120e08 100%);
+  }
+
+  #odu-number {
+    font-family: 'Courier New', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    color: var(--gold-dim);
+  }
+
+  #odu-name {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-align: center;
+    min-height: 2.4rem;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Opele */
+  .opele-chain {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .opele-arm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  .opele-arm::before {
+    content: '';
+    position: absolute;
+    top: 8px; bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    background: linear-gradient(180deg, #5a3a0a, #8a6020, #5a3a0a);
+    border-radius: 1px;
+    z-index: 0;
+  }
+
+  .pod-wrap {
+    position: relative;
+    z-index: 1;
+    padding: 2px 0;
+    transition: filter 0.15s;
+  }
+
+  .opele-knot {
+    width: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .opele-knot::before {
+    content: '';
+    display: block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #e8cc7a, #7a5c1a);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  }
+
+  /* Pattern numbers */
+  #pattern-display {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+  }
+
+  .pattern-pip { opacity: 0.28; transition: opacity 0.12s, color 0.12s; }
+  .pattern-pip.active { opacity: 1; color: var(--gold-light); }
+
+  /* Progress */
+  .progress-wrap { width: 100%; height: 2px; background: #2a2018; border-radius: 1px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); transition: width 0.3s ease; border-radius: 1px; }
+
+  #status {
+    font-size: 0.75rem;
+    color: #a09070;
+    font-style: italic;
+    min-height: 1rem;
+    text-align: center;
+  }
+
+  #voice-label {
+    font-family: 'Courier New', monospace;
+    font-size: 0.55rem;
+    color: var(--gold-dim);
+    letter-spacing: 0.08em;
+    text-align: center;
+    margin-top: -0.4rem;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 1.2rem;
+    align-items: center;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    width: 46px; height: 46px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 2px;
+    transition: background 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ctrl-btn:active { background: rgba(201,168,76,0.15); border-color: var(--gold); }
+
+  .play-btn {
+    width: 60px; height: 60px;
+    font-size: 1.4rem;
+    border-color: var(--gold);
+    color: var(--gold-light);
+    border-radius: 50%;
+  }
+
+  .speed-wrap {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .speed-btn {
+    background: none;
+    border: 1px solid var(--gold-dim);
+    color: #a09070;
+    padding: 0.25rem 0.55rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.65rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .speed-btn.active { background: var(--gold-dim); color: var(--gold-light); }
+  .speed-btn:active { background: rgba(201,168,76,0.15); }
+
+  /* ── Tracklist ── */
+  #tracklist {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tracklist-header {
+    padding: 0.45rem 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    color: var(--gold-dim);
+    border-bottom: 1px solid rgba(122,96,48,0.3);
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    background: var(--ink);
+    z-index: 10;
+  }
+
+  .track {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(122,96,48,0.15);
+    transition: background 0.12s;
+  }
+  .track:active { background: rgba(201,168,76,0.07); }
+  .track.active { background: rgba(201,168,76,0.07); }
+
+  .track-num {
+    font-family: 'Courier New', monospace;
+    font-size: 0.6rem;
+    color: var(--gold-dim);
+    width: 1.4rem;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .now-playing-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.15} }
+  .track:not(.active) .now-playing-dot { visibility: hidden; }
+
+  .track-name {
+    font-size: 0.95rem;
+    color: var(--paper);
+    flex: 1;
+  }
+  .track.active .track-name { color: var(--gold-light); }
+
+  .track-pattern {
+    font-family: 'Courier New', monospace;
+    font-size: 0.6rem;
+    color: var(--gold-dim);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="header">
+    <h1>Odu Ifá</h1>
+    <p>Audio Learner · 16 Meji</p>
+  </div>
+
+  <div id="player">
+    <div id="odu-number">ODU 01 / 16</div>
+    <div id="odu-name">Eji-Ogbe</div>
+    <div id="opele-display"></div>
+    <div id="pattern-display"></div>
+    <div class="progress-wrap"><div class="progress-fill" id="progress-fill"></div></div>
+    <div id="status">Tap play to begin</div>
+    <div id="voice-label">Voice: loading…</div>
+    <div class="controls">
+      <button class="ctrl-btn" onclick="prevOdu()">&#9664;</button>
+      <button class="ctrl-btn play-btn" id="btn-play" onclick="togglePlay()">&#9654;</button>
+      <button class="ctrl-btn" onclick="nextOdu()">&#9654;&#9654;</button>
+    </div>
+    <div class="speed-wrap">
+      <button class="speed-btn" onclick="setSpeed(0.75,this)">0.75×</button>
+      <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
+      <button class="speed-btn" onclick="setSpeed(1.25,this)">1.25×</button>
+      <button class="speed-btn" onclick="setSpeed(1.5,this)">1.5×</button>
+    </div>
+  </div>
+
+  <div id="tracklist">
+    <div class="tracklist-header">All 16 Meji — tap any to jump</div>
+    <div id="tracklist-body"></div>
+  </div>
+
+</div>
+<script>
+const MEJI = [
+  { id:"ogbe",     name:"Eji-Ogbe",      mark:[[1,1],[1,1],[1,1],[1,1]] },
+  { id:"oyeku",    name:"Oyeku Meji",     mark:[[2,2],[2,2],[2,2],[2,2]] },
+  { id:"iwori",    name:"Iwori Meji",     mark:[[2,2],[1,1],[1,1],[2,2]] },
+  { id:"odi",      name:"Odi Meji",       mark:[[1,1],[2,2],[2,2],[1,1]] },
+  { id:"irosun",   name:"Irosun Meji",    mark:[[1,1],[1,1],[2,2],[2,2]] },
+  { id:"owonrin",  name:"Owonrin Meji",   mark:[[2,2],[2,2],[1,1],[1,1]] },
+  { id:"obara",    name:"Obara Meji",     mark:[[1,1],[2,2],[2,2],[2,2]] },
+  { id:"okanran",  name:"Okanran Meji",   mark:[[2,2],[2,2],[2,2],[1,1]] },
+  { id:"ogunda",   name:"Ogunda Meji",    mark:[[1,1],[1,1],[1,1],[2,2]] },
+  { id:"osa",      name:"Osa Meji",       mark:[[2,2],[1,1],[1,1],[1,1]] },
+  { id:"ika",      name:"Ika Meji",       mark:[[2,2],[1,1],[2,2],[2,2]] },
+  { id:"oturupon", name:"Oturupon Meji",  mark:[[2,2],[2,2],[1,1],[2,2]] },
+  { id:"otura",    name:"Otura Meji",     mark:[[1,1],[2,2],[1,1],[1,1]] },
+  { id:"irete",    name:"Irete Meji",     mark:[[1,1],[1,1],[2,2],[1,1]] },
+  { id:"ose",      name:"Ose Meji",       mark:[[1,1],[2,2],[1,1],[2,2]] },
+  { id:"ofun",     name:"Ofun Meji",      mark:[[2,2],[1,1],[2,2],[1,1]] },
+];
+
+const synth = window.speechSynthesis;
+let currentIdx = 0;
+let isPlaying  = false;
+let speechRate = 1;
+let utterance  = null;
+let phaseTimeout = null;
+let chosenVoice = null;
+
+// ── Voice ────────────────────────────────────────────────────────────────────
+function pickVoice() {
+  const voices = synth.getVoices();
+  if (!voices.length) return;
+
+  const isLatina = v =>
+    /^es/i.test(v.lang) &&
+    /female|woman|mujer|paulina|m[oó]nica|ximena|camila|luciana|valeria|rosa|lupe|maria/i.test(v.name);
+
+  const isFemale = v =>
+    /female|woman/i.test(v.name) ||
+    /zira|hazel|karen|samantha|victoria|fiona|moira|tessa|veena|paulina/i.test(v.name);
+
+  const isSpanish = v => /^es/i.test(v.lang);
+
+  chosenVoice =
+    voices.find(isLatina) ||
+    voices.find(v => isSpanish(v) && isFemale(v)) ||
+    voices.find(isSpanish) ||
+    voices.find(isFemale) ||
+    null;
+
+  const label = chosenVoice ? `${chosenVoice.name} (${chosenVoice.lang})` : 'system default';
+  document.getElementById('voice-label').textContent = `Voice: ${label}`;
+}
+
+synth.onvoiceschanged = pickVoice;
+pickVoice();
+
+function speak(text, onEnd) {
+  synth.cancel();
+  utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate  = speechRate;
+  utterance.pitch = 1.05;
+  utterance.lang  = chosenVoice ? chosenVoice.lang : 'es-US';
+  if (chosenVoice) utterance.voice = chosenVoice;
+  utterance.onend = onEnd || null;
+  synth.speak(utterance);
+}
+
+function cancelSpeech() {
+  synth.cancel();
+  clearTimeout(phaseTimeout);
+  utterance = null;
+}
+
+// ── Playback ─────────────────────────────────────────────────────────────────
+function playCurrentOdu() {
+  const odu = MEJI[currentIdx];
+  updateDisplay(odu);
+  setStatus('Speaking name…');
+  clearPips();
+
+  speak(odu.name, () => {
+    phaseTimeout = setTimeout(() => {
+      setStatus('Reciting pattern…');
+      speakPattern(odu, () => {
+        phaseTimeout = setTimeout(() => {
+          setStatus('Repeating name…');
+          speak(odu.name, () => {
+            phaseTimeout = setTimeout(() => {
+              clearPips();
+              if (currentIdx < MEJI.length - 1) {
+                currentIdx++;
+                playCurrentOdu();
+              } else {
+                setStatus('Complete — all 16 Meji.');
+                setPlayBtn(false);
+                isPlaying = false;
+              }
+            }, 900 / speechRate);
+          });
+        }, 400 / speechRate);
+      });
+    }, 500 / speechRate);
+  });
+}
+
+function speakPattern(odu, onDone) {
+  const numWord = n => n === 1 ? 'one' : 'two';
+  const L = odu.mark.map(r => r[0]);
+  const R = odu.mark.map(r => r[1]);
+  const text = `Left: ${L.map(numWord).join(', ')}. Right: ${R.map(numWord).join(', ')}.`;
+
+  const base = 1 / speechRate;
+  let t = 400 * base;
+  const sched = [];
+  for (let i = 0; i < 4; i++) { sched.push({t, col:'L', row:i}); t += 480 * base; }
+  t += 500 * base;
+  for (let i = 0; i < 4; i++) { sched.push({t, col:'R', row:i}); t += 480 * base; }
+  sched.forEach(s => setTimeout(() => highlightPip(s.col, s.row), s.t));
+
+  speak(text, () => { clearPips(); onDone && onDone(); });
+}
+
+// ── Display ──────────────────────────────────────────────────────────────────
+function updateDisplay(odu) {
+  document.getElementById('odu-number').textContent =
+    `ODU ${String(currentIdx+1).padStart(2,'0')} / ${MEJI.length}`;
+  document.getElementById('odu-name').textContent = odu.name;
+  document.getElementById('progress-fill').style.width =
+    `${((currentIdx+1) / MEJI.length) * 100}%`;
+  renderOpele(odu);
+  renderPips(odu);
+  updateTracklist();
+}
+
+function podSVG(type) {
+  const w = 30, h = 20;
+  if (type === 1) {
+    return `<svg width="${w}" height="${h}" viewBox="0 0 38 26" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="og" cx="50%" cy="70%" r="60%">
+          <stop offset="0%" stop-color="#e8cc7a"/>
+          <stop offset="40%" stop-color="#a07830"/>
+          <stop offset="100%" stop-color="#4a2e08"/>
+        </radialGradient>
+        <radialGradient id="oi" cx="50%" cy="20%" r="70%">
+          <stop offset="0%" stop-color="#fdf0c0"/>
+          <stop offset="60%" stop-color="#c8a050"/>
+          <stop offset="100%" stop-color="#6a4010"/>
+        </radialGradient>
+      </defs>
+      <path d="M4,4 Q4,22 19,22 Q34,22 34,4" fill="url(#og)" stroke="#3a2008" stroke-width="1"/>
+      <path d="M8,4 Q8,18 19,18 Q30,18 30,4" fill="url(#oi)"/>
+      <line x1="4" y1="4" x2="8" y2="4" stroke="#e8d080" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="30" y1="4" x2="34" y2="4" stroke="#e8d080" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="6" cy="4" r="2" fill="#1a0e04" stroke="#5a3a0a" stroke-width="0.5"/>
+      <circle cx="32" cy="4" r="2" fill="#1a0e04" stroke="#5a3a0a" stroke-width="0.5"/>
+    </svg>`;
+  } else {
+    return `<svg width="${w}" height="${h}" viewBox="0 0 38 26" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="cg" cx="50%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#e8cc7a"/>
+          <stop offset="50%" stop-color="#8a6020"/>
+          <stop offset="100%" stop-color="#3a1e04"/>
+        </radialGradient>
+      </defs>
+      <path d="M4,22 Q4,4 19,4 Q34,4 34,22 Z" fill="url(#cg)" stroke="#3a2008" stroke-width="1"/>
+      <path d="M12,8 Q19,5 26,8" fill="none" stroke="#f0dc90" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+      <circle cx="6" cy="22" r="2" fill="#1a0e04" stroke="#5a3a0a" stroke-width="0.5"/>
+      <circle cx="32" cy="22" r="2" fill="#1a0e04" stroke="#5a3a0a" stroke-width="0.5"/>
+    </svg>`;
+  }
+}
+
+function renderOpele(odu) {
+  function arm(col) {
+    let h = `<div class="opele-arm">`;
+    for (let r = 0; r < 4; r++)
+      h += `<div class="pod-wrap" id="pod-${col}-${r}">${podSVG(odu.mark[r][col === 'L' ? 0 : 1])}</div>`;
+    return h + `</div>`;
+  }
+  document.getElementById('opele-display').innerHTML =
+    `<div class="opele-chain">${arm('L')}<div class="opele-knot"></div>${arm('R')}</div>`;
+}
+
+function renderPips(odu) {
+  const L = odu.mark.map(r => r[0]);
+  const R = odu.mark.map(r => r[1]);
+  let h = L.map((v,i) => `<span class="pattern-pip" id="pip-L-${i}">${v}</span>`).join('');
+  h += `<span style="color:var(--gold-dim);opacity:0.35;margin:0 0.2rem">·</span>`;
+  h += R.map((v,i) => `<span class="pattern-pip" id="pip-R-${i}">${v}</span>`).join('');
+  document.getElementById('pattern-display').innerHTML = h;
+}
+
+function highlightPip(col, row) {
+  clearPips();
+  const pip = document.getElementById(`pip-${col}-${row}`);
+  const pod = document.getElementById(`pod-${col}-${row}`);
+  if (pip) pip.classList.add('active');
+  if (pod) pod.style.filter = 'drop-shadow(0 0 7px rgba(232,204,122,0.95))';
+}
+
+function clearPips() {
+  document.querySelectorAll('.pattern-pip').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.pod-wrap').forEach(p => p.style.filter = '');
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setPlayBtn(on) { document.getElementById('btn-play').innerHTML = on ? '&#9646;&#9646;' : '&#9654;'; }
+
+// ── Tracklist ────────────────────────────────────────────────────────────────
+function buildTracklist() {
+  document.getElementById('tracklist-body').innerHTML = MEJI.map((o, i) => {
+    const pat = o.mark.map(r => r.join('')).join(' ');
+    return `<div class="track" id="track-${i}" onclick="jumpTo(${i})">
+      <div class="track-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="now-playing-dot"></div>
+      <div class="track-name">${o.name}</div>
+      <div class="track-pattern">${pat}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateTracklist() {
+  document.querySelectorAll('.track').forEach((el, i) =>
+    el.classList.toggle('active', i === currentIdx));
+  const active = document.getElementById(`track-${currentIdx}`);
+  if (active) active.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+
+// ── Controls ─────────────────────────────────────────────────────────────────
+function togglePlay() {
+  if (isPlaying) {
+    isPlaying = false; cancelSpeech(); setPlayBtn(false); setStatus('Paused');
+  } else {
+    isPlaying = true; setPlayBtn(true); playCurrentOdu();
+  }
+}
+
+function prevOdu() {
+  cancelSpeech();
+  if (currentIdx > 0) currentIdx--;
+  updateDisplay(MEJI[currentIdx]);
+  if (isPlaying) playCurrentOdu(); else setStatus('Tap play to begin');
+}
+
+function nextOdu() {
+  cancelSpeech();
+  if (currentIdx < MEJI.length - 1) currentIdx++;
+  updateDisplay(MEJI[currentIdx]);
+  if (isPlaying) playCurrentOdu(); else setStatus('Tap play to begin');
+}
+
+function jumpTo(idx) {
+  cancelSpeech();
+  currentIdx = idx;
+  isPlaying = true;
+  setPlayBtn(true);
+  playCurrentOdu();
+}
+
+function setSpeed(rate, btn) {
+  speechRate = rate;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+buildTracklist();
+updateDisplay(MEJI[0]);
+</script>
+</body>
+</html>
